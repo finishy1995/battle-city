@@ -8,6 +8,10 @@
 
 如果游戏过程中发现任何 BUG 的话，欢迎提 [issue](https://github.com/shinima/battle-city/issues/new)。
 
+### Fork 说明
+
+实现基于 WebSocket 的多人游戏模式，用于[《游戏微服务架构实践》](https://www.zhihu.com/column/c_1523408830696747008)的 Demo 客户端。
+
 ### 开发进度：
 
 <details>

@@ -10,6 +10,7 @@ import Screen from './Screen'
 import StagePreview from './StagePreview'
 import Text from './Text'
 import TextButton from './TextButton'
+import {login, startMatchmaking} from "../utils/server";
 
 class ChooseStageScene extends React.PureComponent<{
   stages: List<StageConfig>
@@ -17,12 +18,40 @@ class ChooseStageScene extends React.PureComponent<{
   location: Location
   match: match<{ stageName: string }>
 }> {
+  state = {
+    words: "login ...",
+  }
+
   componentDidMount() {
     document.addEventListener('keydown', this.onKeyDown)
+    document.addEventListener('matchmaking_start', this.onMatchmakingStart)
+    login().then(
+      (res) => {
+        console.log(res);
+        if (res.code < 100) {
+          this.setState({words: "login success"});
+        } else {
+          this.setState({words: "login fail. errorcode: "+res.code});
+        }
+      }
+    ).catch(
+      (err) => {
+        console.log(err);
+        this.setState({words: "login fail. please see console for more details"});
+      }
+    )
   }
 
   componentWillUnmount() {
     document.removeEventListener('keydown', this.onKeyDown)
+  }
+
+  onMatchmakingStart = (event: any) => {
+    if (event.detail.code > 99) {
+      this.setState({words: "matchmaking fail. errorcode: "+event.detail.code});
+    } else {
+      this.setState({words: "matchmaking success"});
+    }
   }
 
   onKeyDown = (event: KeyboardEvent) => {
@@ -68,7 +97,10 @@ class ChooseStageScene extends React.PureComponent<{
   onStartPlay = () => {
     const { dispatch, match, location } = this.props
     const { stageName } = match.params
-    dispatch(push(`/stage/${stageName}${location.search}`))
+    console.log(stageName);
+    let stageNum = parseInt(stageName);
+    startMatchmaking(stageNum);
+    // dispatch(push(`/stage/${stageName}${location.search}`))
   }
 
   render() {
@@ -123,7 +155,7 @@ class ChooseStageScene extends React.PureComponent<{
           <TextButton content="back" x={9 * B} y={0} onClick={() => dispatch(replace('/'))} />
         </g>
         <g className="hint" transform={`translate(${0.5 * B},${14.5 * B}) scale(0.5)`}>
-          <Text fill="#999" content="Press left or right to choose stages. Press fire to start." />
+          <Text fill="#999" content={this.state.words} />
         </g>
       </Screen>
     )

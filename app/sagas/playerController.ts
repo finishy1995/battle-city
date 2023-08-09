@@ -17,6 +17,9 @@ export default function* playerController(tankId: TankId, config: PlayerConfig) 
   try {
     document.addEventListener('keydown', onKeyDown)
     document.addEventListener('keyup', onKeyUp)
+
+    const event = new CustomEvent("build", { detail: "111" });
+    document.dispatchEvent(event);
     yield all([
       directionController(tankId, getPlayerInput),
       fireController(tankId, () => firePressed || firePressing),
