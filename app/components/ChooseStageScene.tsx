@@ -10,7 +10,8 @@ import Screen from './Screen'
 import StagePreview from './StagePreview'
 import Text from './Text'
 import TextButton from './TextButton'
-import {login, startMatchmaking} from "../utils/server";
+import {getUserId, login, queryMatchmaking, startMatchmaking} from "../utils/server";
+import {setInterval} from "timers";
 
 class ChooseStageScene extends React.PureComponent<{
   stages: List<StageConfig>
@@ -25,11 +26,12 @@ class ChooseStageScene extends React.PureComponent<{
   componentDidMount() {
     document.addEventListener('keydown', this.onKeyDown)
     document.addEventListener('matchmaking_start', this.onMatchmakingStart)
+    document.addEventListener('matchmaking_result', this.onMatchmakingResult)
     login().then(
       (res) => {
         console.log(res);
         if (res.code < 100) {
-          this.setState({words: "login success"});
+          this.setState({words: "login success. welcome " + getUserId()});
         } else {
           this.setState({words: "login fail. errorcode: "+res.code});
         }
@@ -50,7 +52,19 @@ class ChooseStageScene extends React.PureComponent<{
     if (event.detail.code > 99) {
       this.setState({words: "matchmaking fail. errorcode: "+event.detail.code});
     } else {
-      this.setState({words: "matchmaking success"});
+      this.setState({words: "matchmaking start ..."});
+
+      queryMatchmaking();
+    }
+  }
+
+  onMatchmakingResult = (event: any) => {
+    if (event.detail.code > 99 || event.detail.result == 1 || event.detail.result == 2) {
+      setTimeout(queryMatchmaking, 2000);
+    } else if (event.detail.result == 3) {
+      this.setState({words: "matchmaking success. endpoint: " + event.detail.detail.endpoint + ". secret: " + event.detail.detail.secret});
+    } else {
+      this.setState({words: "matchmaking failed. please try again."});
     }
   }
 

@@ -2,13 +2,23 @@ import axios, {AxiosRequestConfig} from "axios";
 import {BaseResponse, LoginResponse} from "../types/server";
 import {randint} from "./common";
 import {decodeClientResponse, encodeClientRequest} from "../proto/gate";
-import {decodeStartResponse, encodeStartRequest} from "../proto/matchmaking";
+import {
+  decodeResultResponse,
+  decodeStartResponse,
+  encodeResultRequest,
+  encodeStartRequest,
+  MatchResultDetails
+} from "../proto/matchmaking";
 
 const serverUrl = "http://localhost:6900";
 let ws: WebSocket = null;
 let id = randint(1, 9999).toString();
 let gate_endpoint = "";
 let gate_token = "";
+
+export function getUserId(): string {
+  return id;
+}
 
 export async function login() : Promise<BaseResponse> {
   let response: BaseResponse = {
@@ -46,12 +56,24 @@ export async function login() : Promise<BaseResponse> {
 }
 
 export function startMatchmaking(stage: number): void {
+  messageId += 1;
   let req = encodeStartRequest({
     matchType: stage,
   })
   let msg = encodeClientRequest({
     id: messageId,
     method: "/matchmaking.Matchmaking/start",
+    content: req,
+  })
+  ws.send(msg);
+}
+
+export function queryMatchmaking(): void {
+  messageId += 1;
+  let req = encodeResultRequest({})
+  let msg = encodeClientRequest({
+    id: messageId,
+    method: "/matchmaking.Matchmaking/result",
     content: req,
   })
   ws.send(msg);
@@ -68,10 +90,10 @@ function createWebSocket(url: string, token: string): void {
   ws.onmessage = function (evt) {
     let resp = decodeClientResponse(stringToUint8Array(evt.data));
     console.log("接收到消息", resp);
-    messageId = resp.id + 1;
 
     switch (resp.method) {
       case "/matchmaking.Matchmaking/start":
+      {
         let dict: CustomEventInit = {
           detail: {
             code: 0,
@@ -85,13 +107,55 @@ function createWebSocket(url: string, token: string): void {
         }
         if (dict.detail.code == undefined) dict.detail.code = 0;
         if (dict.detail.code < 100) {
-          console.log("匹配成功");
+          console.log("匹配请求成功");
         } else {
           console.error("匹配失败", dict.detail.code);
         }
 
         const event = new CustomEvent("matchmaking_start", dict)
         document.dispatchEvent(event);
+      }
+        break
+      case "/matchmaking.Matchmaking/result":
+      {
+        let dict: CustomEventInit = {
+          detail: {
+            code: 0,
+            result: 1,
+            detail: {
+              matchType: 0,
+              endpoint: "",
+              secret: "",
+            }
+          }
+        }
+        if (resp.code == undefined || resp.code < 100) {
+          let response = decodeResultResponse(resp.content);
+          dict.detail.code = response.code;
+
+          if (response.code < 100) {
+            dict.detail.result = response.result;
+
+            if (response.detail != undefined) {
+              dict.detail.detail.matchType = response.detail.matchType;
+              dict.detail.detail.endpoint = response.detail.endpoint;
+              dict.detail.detail.secret = response.detail.secret;
+            }
+          }
+        } else {
+          dict.detail.code = resp.code;
+        }
+        if (dict.detail.code == undefined) dict.detail.code = 0;
+        if (dict.detail.code < 100) {
+          console.log("匹配结果查询成功");
+          console.log(dict);
+        } else {
+          console.error("匹配结果查询失败", dict.detail.code);
+        }
+
+        const event = new CustomEvent("matchmaking_result", dict)
+        document.dispatchEvent(event);
+      }
         break
       case "":
         if (resp.id === 1) {
